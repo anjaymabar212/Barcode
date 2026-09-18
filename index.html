@@ -647,7 +647,6 @@
           addKeyword(val);
         }
       } else if (e.key === 'Backspace' && tagInput.value === '' && selectedKeywords.length > 0) {
-        // Delete last tag on Backspace if input is empty
         removeKeyword(selectedKeywords[selectedKeywords.length - 1]);
       }
     });
@@ -676,11 +675,9 @@
   }
 
   function renderTags() {
-    // Remove existing chips
     const existingChips = tagsContainer.querySelectorAll('.tag-chip');
     existingChips.forEach(chip => chip.remove());
 
-    // Insert new chips before the input field
     selectedKeywords.forEach(kw => {
       const chip = document.createElement('span');
       chip.className = 'tag-chip';
@@ -743,8 +740,11 @@
     }
   }
 
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function processExcel() {
-    // Include typed query if user didn't press enter
     const remainingInput = tagInput.value.trim().toUpperCase();
     if (remainingInput && !selectedKeywords.includes(remainingInput)) {
       selectedKeywords.push(remainingInput);
@@ -775,8 +775,13 @@
 
       let isMatch = true;
       if (selectedKeywords.length > 0) {
-        // Row must match ALL selected keyword chips
-        isMatch = selectedKeywords.every(kw => rowString.includes(kw));
+        // EXACT WORD BOUNDARY MATCHING:
+        // Ensures word like "TOP" matches exact word "TOP", not "STOPPER"
+        isMatch = selectedKeywords.every(kw => {
+          const escapedKw = escapeRegExp(kw);
+          const regex = new RegExp(`\\b${escapedKw}\\b`, 'i');
+          return regex.test(rowString);
+        });
       }
 
       if (isMatch) {
@@ -1047,3 +1052,4 @@
 </script>
 </body>
 </html>
+
