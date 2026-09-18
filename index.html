@@ -4,37 +4,455 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blind Counting - Barcode Generator</title>
+  <!-- SheetJS Library for Excel Parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- JsBarcode Library for Barcode Rendering -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .container { background: #1e1e1e; border-radius: 16px; padding: 24px; width: 100%; max-width: 450px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333; }
-    .upload-box { border: 2px dashed #444; padding: 25px 15px; border-radius: 12px; cursor: pointer; transition: 0.3s; margin-bottom: 15px; background: #252525; }
-    .upload-box:hover { border-color: #2196F3; background: #2a2a2a; }
+    body { 
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; 
+      background-color: #121212; 
+      color: #fff; 
+      margin: 0; 
+      padding: 16px; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+    }
+    .container { 
+      background: #1e1e1e; 
+      border-radius: 16px; 
+      padding: 24px; 
+      width: 100%; 
+      max-width: 480px; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6); 
+      text-align: center; 
+      border: 1px solid #333; 
+      position: relative;
+    }
+    h2 { margin-top: 0; color: #f5f5f5; font-size: 20px; }
+    
+    /* Upload Box Styling */
+    .upload-box { 
+      border: 2px dashed #444; 
+      padding: 25px 15px; 
+      border-radius: 12px; 
+      cursor: pointer; 
+      transition: all 0.3s ease; 
+      margin-bottom: 15px; 
+      background: #252525; 
+    }
+    .upload-box:hover { 
+      border-color: #2196F3; 
+      background: #2a2a2a; 
+    }
     input[type="file"] { display: none; }
+    
+    /* Form Group Styling */
     .filter-group { margin-top: 15px; text-align: left; }
-    .filter-group label { font-size: 12px; color: #aaa; display: block; margin-bottom: 5px; }
-    .filter-group input, .filter-group select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #121212; color: #fff; font-size: 14px; margin-bottom: 10px; }
-    .btn-main { width: 100%; padding: 14px; font-weight: bold; background: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; margin-top: 10px; font-size: 15px; }
-    .btn-main:disabled { background: #444; cursor: not-allowed; }
-    .viewer { display: none; }
-    .badge { background: #ff9800; color: #000; font-weight: bold; font-size: 12px; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-bottom: 12px; }
-    .sku-name { font-size: 15px; font-weight: 600; min-height: 44px; display: flex; align-items: center; justify-content: center; color: #e0e0e0; }
-    .barcode-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
-    svg { width: 100%; height: auto; }
-    .meta { font-size: 13px; color: #aaa; margin-bottom: 20px; }
+    .filter-group label { font-size: 12px; color: #aaa; display: block; margin-bottom: 6px; font-weight: 600; }
+    .filter-group select { 
+      width: 100%; 
+      padding: 12px; 
+      border-radius: 8px; 
+      border: 1px solid #444; 
+      background: #121212; 
+      color: #fff; 
+      font-size: 14px; 
+      margin-bottom: 12px; 
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .filter-group select:focus {
+      border-color: #2196F3;
+    }
+
+    .tags-input-wrapper {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #121212;
+      border: 1px solid #444;
+      border-radius: 8px;
+      min-height: 46px;
+      cursor: text;
+      transition: border-color 0.2s;
+    }
+    .tags-container:focus-within {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1976D2;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 16px;
+      border: 1px solid #2196F3;
+      animation: fadeIn 0.15s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .tag-chip .remove-btn {
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      line-height: 1;
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.25);
+      transition: background 0.2s;
+    }
+    .tag-chip .remove-btn:hover {
+      background: #ff5252;
+    }
+    .tag-search-input {
+      flex: 1;
+      min-width: 120px;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #fff;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .tag-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+      display: none;
+    }
+    .tags-input-wrapper.open .tag-dropdown {
+      display: block;
+    }
+    .tag-dropdown::-webkit-scrollbar { width: 6px; }
+    .tag-dropdown::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    .tag-dropdown-item {
+      padding: 9px 12px;
+      font-size: 13px;
+      color: #ddd;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #2a2a2a;
+      transition: background 0.15s;
+    }
+    .tag-dropdown-item:last-child { border-bottom: none; }
+    .tag-dropdown-item:hover, .tag-dropdown-item.selected {
+      background: #0d47a1;
+      color: #fff;
+    }
+    .tag-dropdown-item .item-category {
+      font-size: 10px;
+      color: #ffb74d;
+      background: rgba(255, 183, 77, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .btn-main { 
+      width: 100%; 
+      padding: 14px; 
+      font-weight: bold; 
+      background: #4CAF50; 
+      color: white; 
+      border: none; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      margin-top: 10px; 
+      font-size: 15px; 
+      transition: background 0.3s;
+    }
+    .btn-main:hover { background: #43a047; }
+    .btn-main:disabled { background: #333; color: #666; cursor: not-allowed; }
+    
+    /* Viewer Section */
+    .viewer { display: none; text-align: left; }
+    
+    .combobox-container {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .combobox-label {
+      font-size: 11px;
+      color: #2196F3;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .combobox-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .combobox-input {
+      width: 100%;
+      padding: 12px 36px 12px 36px;
+      border-radius: 10px;
+      border: 1px solid #3d3d3d;
+      background: #252525;
+      color: #00e676;
+      font-weight: 700;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .combobox-input:focus {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.25);
+      background: #1e1e1e;
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      color: #888;
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .chevron-icon {
+      position: absolute;
+      right: 12px;
+      color: #888;
+      font-size: 12px;
+      pointer-events: none;
+      transition: transform 0.2s;
+    }
+    .combobox-container.open .chevron-icon {
+      transform: rotate(180deg);
+    }
+    
+    .combobox-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #222222;
+      border: 1px solid #444;
+      border-radius: 10px;
+      max-height: 240px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+      display: none;
+    }
+    .combobox-container.open .combobox-dropdown {
+      display: block;
+    }
+    .combobox-dropdown::-webkit-scrollbar { width: 6px; }
+    .combobox-dropdown::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    
+    .combobox-item {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #ddd;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #2d2d2d;
+      transition: background 0.15s;
+    }
+    .combobox-item:last-child { border-bottom: none; }
+    .combobox-item:hover, .combobox-item.selected {
+      background: #0d47a1;
+      color: #fff;
+    }
+    .combobox-item .item-bin { font-weight: bold; color: #ffb74d; }
+    .combobox-item:hover .item-bin, .combobox-item.selected .item-bin { color: #fff; }
+    .combobox-item .item-sub {
+      font-size: 11px;
+      color: #2196F3;
+      background: rgba(33, 150, 243, 0.15);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .combobox-item:hover .item-sub, .combobox-item.selected .item-sub {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+    .combobox-no-results {
+      padding: 12px;
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .badge-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .badge { 
+      background: #ff9800; 
+      color: #000; 
+      font-weight: bold; 
+      font-size: 13px; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      display: inline-block; 
+    }
+    .badge-total {
+      font-size: 12px;
+      color: #00e676;
+      font-weight: 700;
+      background: rgba(0, 230, 118, 0.1);
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 230, 118, 0.2);
+    }
+    
+    .sku-name { 
+      font-size: 15px; 
+      font-weight: 600; 
+      min-height: 44px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: #e0e0e0; 
+      text-align: center;
+      background: #252525;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+    }
+    
+    .barcode-box { 
+      background: white; 
+      padding: 15px; 
+      border-radius: 10px; 
+      margin: 15px 0 10px 0; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    svg { width: 100%; height: auto; max-height: 110px; }
+    
+    .meta { 
+      font-size: 13px; 
+      color: #aaa; 
+      text-align: center;
+      font-family: monospace;
+      margin-bottom: 6px;
+    }
+
+    /* Quantity Box Styling */
+    .qty-box {
+      background: rgba(76, 175, 80, 0.12);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .qty-title {
+      font-size: 11px;
+      color: #81c784;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .qty-value {
+      font-size: 16px;
+      color: #00e676;
+      font-weight: 800;
+      font-family: monospace;
+    }
+    
+    /* Navigation Buttons */
     .nav-btns { display: flex; gap: 12px; }
-    .btn-nav { flex: 1; padding: 16px; font-size: 15px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; }
+    .btn-nav { 
+      flex: 1; 
+      padding: 16px; 
+      font-size: 15px; 
+      font-weight: bold; 
+      border: none; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      transition: opacity 0.2s;
+    }
+    .btn-nav:active { opacity: 0.8; }
     .btn-prev { background: #333; color: #ccc; }
     .btn-next { background: #2196F3; color: white; }
-    .progress { font-size: 12px; color: #777; margin-top: 15px; }
-    .btn-reset { background: transparent; color: #ff5252; border: none; margin-top: 15px; cursor: pointer; font-size: 12px; text-decoration: underline; }
+    
+    .progress { font-size: 13px; color: #888; text-align: center; margin-top: 15px; font-weight: 500; }
+    .btn-reset { 
+      display: block; 
+      width: 100%; 
+      background: transparent; 
+      color: #ff5252; 
+      border: none; 
+      margin-top: 15px; 
+      cursor: pointer; 
+      font-size: 12px; 
+      text-decoration: underline; 
+      text-align: center;
+    }
+
+    /* Custom Toast Notification */
+    .toast-msg {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1976D2;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 2000;
+      white-space: nowrap;
+    }
+    .toast-msg.show { opacity: 1; }
   </style>
 </head>
 <body>
 
 <div class="container">
+  <!-- Toast Notification Bar -->
+  <div id="toast" class="toast-msg">Notifikasi</div>
+
+  <!-- Setup Section -->
   <div id="setup-section">
     <h2>Upload Data Stock</h2>
     <div class="upload-box" onclick="document.getElementById('excel-file').click()">
@@ -43,8 +461,18 @@
     </div>
 
     <div class="filter-group">
-      <label>Filter Keyword (Pisahkan koma):</label>
-      <input type="text" id="filter-keyword" placeholder="Contoh: MOUNTAINEERING, SANDAL">
+      <label>Filter Keyword (Multi-Select Tag Dropdown):</label>
+      
+      <!-- Multi-select Keyword Component -->
+      <div class="tags-input-wrapper" id="tags-wrapper">
+        <div class="tags-container" id="tags-container" onclick="focusTagInput()">
+          <!-- Chips will be inserted here dynamically -->
+          <input type="text" id="tag-input" class="tag-search-input" placeholder="Pilih / ketik kata kunci..." autocomplete="off">
+        </div>
+        <div class="tag-dropdown" id="tag-dropdown-list">
+          <!-- Suggested keywords from Excel will appear here -->
+        </div>
+      </div>
       
       <label>Urutan Data (Sort By Bin):</label>
       <select id="sort-order">
@@ -57,8 +485,27 @@
     <button id="btn-process" class="btn-main" onclick="processExcel()" disabled>Generate Barcode</button>
   </div>
 
+  <!-- Viewer Section -->
   <div id="viewer-section" class="viewer">
-    <span class="badge" id="bin-code">BIN: -</span>
+    
+    <!-- Searchable Grouping Combobox for Bins -->
+    <div class="combobox-container" id="combobox-wrapper">
+      <label class="combobox-label" for="bin-search-input">🔍 Pilih / Cari Bin Code (Group):</label>
+      <div class="combobox-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="bin-search-input" class="combobox-input" placeholder="Ketik Bin Code..." autocomplete="off">
+        <span class="chevron-icon">▼</span>
+      </div>
+      <div class="combobox-dropdown" id="combobox-dropdown-list">
+        <!-- Unique Bin items will be rendered dynamically -->
+      </div>
+    </div>
+
+    <div class="badge-wrapper">
+      <span class="badge" id="bin-code">BIN: -</span>
+      <span class="badge-total" id="badge-index-info">SKU 0/0 di Bin ini</span>
+    </div>
+
     <div class="sku-name" id="sku-name">Nama Barang</div>
     
     <div class="barcode-box">
@@ -67,8 +514,14 @@
 
     <div class="meta" id="sku-code">SKU: -</div>
     
+    <!-- Quantity Display Box -->
+    <div class="qty-box">
+      <span class="qty-title">TOTAL QTY SKU INI:</span>
+      <span class="qty-value" id="qty-val">0</span>
+    </div>
+    
     <div class="nav-btns">
-      <button class="btn-nav btn-prev" onclick="prevBar()">PREV</button>
+      <button class="btn-nav btn-prev" onclick="prevBar()">&#10094; PREV</button>
       <button class="btn-nav btn-next" onclick="nextBar()">NEXT &#10095;</button>
     </div>
 
@@ -79,8 +532,39 @@
 
 <script>
   let rawData = [];
-  let items = [];
-  let currentIndex = 0;
+  let autoSuggestedKeywords = []; // Extracted automatically from Excel
+  let selectedKeywords = [];      // Active selected chips
+  let allFilteredItems = [];      // All items passing keyword & sorting filters
+  let uniqueBinsList = [];        // Array of unique Bin Code objects { binName, itemsCount, totalQty }
+  let selectedBinCode = "ALL";    // Selected Bin Code filter ("ALL" or specific Bin Name)
+  let activeBinItems = [];        // Items strictly belonging to selectedBinCode
+  let currentIndexInBin = 0;      // Index inside activeBinItems
+
+  function showNotification(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3200);
+  }
+
+  function getRowValue(row, candidateKeys, defaultValue = '') {
+    const rowKeys = Object.keys(row);
+    for (const candidate of candidateKeys) {
+      const cleanCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const key of rowKeys) {
+        const cleanKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cleanKey === cleanCandidate) {
+          const val = row[key];
+          if (val !== undefined && val !== null) {
+            return String(val).trim();
+          }
+        }
+      }
+    }
+    return defaultValue;
+  }
 
   function handleFileSelect(event) {
     const file = event.target.files[0];
@@ -90,92 +574,436 @@
     
     const reader = new FileReader();
     reader.onload = function(e) {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheet = workbook.SheetNames[0];
-      rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.SheetNames[0];
+        rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
 
-      document.getElementById('btn-process').disabled = false;
-      document.getElementById('btn-process').innerText = `Proses ${rawData.length} Baris Data`;
+        if (!rawData || rawData.length === 0) {
+          showNotification("File Excel kosong!");
+          return;
+        }
+
+        // Auto-extract keywords from key columns (Brand, Zone, MC Level, Category, Bin Status)
+        extractAutoKeywords();
+
+        document.getElementById('btn-process').disabled = false;
+        document.getElementById('btn-process').innerText = `Proses ${rawData.length} Baris Data`;
+        showNotification(`Data dimuat! Ditemukan ${autoSuggestedKeywords.length} rekomendasi kata kunci.`);
+      } catch (err) {
+        showNotification("Gagal membaca file Excel!");
+      }
     };
     reader.readAsArrayBuffer(file);
   }
 
-  function processExcel() {
-    const keywordInput = document.getElementById('filter-keyword').value.trim().toUpperCase();
-    const sortOrder = document.getElementById('sort-order').value;
-    const keywords = keywordInput ? keywordInput.split(',').map(k => k.trim()) : [];
+  function extractAutoKeywords() {
+    const keywordSet = new Set();
+    const categoriesToScan = ['brand', 'zone code', 'zone', 'mc lv 2', 'mc lv 3', 'mc lv 4', 'bin category', 'bin status', 'location'];
 
-    items = [];
+    rawData.forEach(row => {
+      Object.keys(row).forEach(key => {
+        const cleanKey = key.trim().toLowerCase();
+        if (categoriesToScan.some(cat => cleanKey.includes(cat))) {
+          const val = String(row[key] || '').trim();
+          if (val && val !== '-' && val !== '0' && val.length > 1) {
+            keywordSet.add(val.toUpperCase());
+          }
+        }
+      });
+    });
+
+    autoSuggestedKeywords = Array.from(keywordSet).sort();
+    setupTagEvents();
+    renderKeywordDropdown('');
+  }
+
+  const tagsWrapper = document.getElementById('tags-wrapper');
+  const tagsContainer = document.getElementById('tags-container');
+  const tagInput = document.getElementById('tag-input');
+  const tagDropdownList = document.getElementById('tag-dropdown-list');
+
+  function focusTagInput() {
+    tagInput.focus();
+  }
+
+  function setupTagEvents() {
+    tagInput.addEventListener('focus', () => {
+      tagsWrapper.classList.add('open');
+      renderKeywordDropdown(tagInput.value.trim());
+    });
+
+    tagInput.addEventListener('input', (e) => {
+      tagsWrapper.classList.add('open');
+      renderKeywordDropdown(e.target.value.trim());
+    });
+
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = tagInput.value.trim().toUpperCase().replace(/,/g, '');
+        if (val) {
+          addKeyword(val);
+        }
+      } else if (e.key === 'Backspace' && tagInput.value === '' && selectedKeywords.length > 0) {
+        // Delete last tag on Backspace if input is empty
+        removeKeyword(selectedKeywords[selectedKeywords.length - 1]);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!tagsWrapper.contains(e.target)) {
+        tagsWrapper.classList.remove('open');
+      }
+    });
+  }
+
+  function addKeyword(kw) {
+    const upper = kw.toUpperCase();
+    if (!selectedKeywords.includes(upper)) {
+      selectedKeywords.push(upper);
+      renderTags();
+      tagInput.value = '';
+      renderKeywordDropdown('');
+    }
+  }
+
+  function removeKeyword(kw) {
+    selectedKeywords = selectedKeywords.filter(k => k !== kw);
+    renderTags();
+    renderKeywordDropdown(tagInput.value.trim());
+  }
+
+  function renderTags() {
+    // Remove existing chips
+    const existingChips = tagsContainer.querySelectorAll('.tag-chip');
+    existingChips.forEach(chip => chip.remove());
+
+    // Insert new chips before the input field
+    selectedKeywords.forEach(kw => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.innerHTML = `${escapeHtml(kw)} <span class="remove-btn" onclick="removeKeyword('${escapeHtml(kw)}')">&times;</span>`;
+      tagsContainer.insertBefore(chip, tagInput);
+    });
+  }
+
+  function renderKeywordDropdown(query = '') {
+    tagDropdownList.innerHTML = '';
+    const queryUpper = query.toUpperCase();
+
+    const filteredSuggestions = autoSuggestedKeywords.filter(item => 
+      !queryUpper || item.includes(queryUpper)
+    );
+
+    let matchCount = 0;
+
+    filteredSuggestions.forEach(item => {
+      matchCount++;
+      const isSelected = selectedKeywords.includes(item);
+      const div = document.createElement('div');
+      div.className = `tag-dropdown-item ${isSelected ? 'selected' : ''}`;
+      div.innerHTML = `
+        <span>${isSelected ? '✓ ' : '+ '} ${escapeHtml(item)}</span>
+        <span class="item-category">${isSelected ? 'Dipilih' : 'Opsi'}</span>
+      `;
+
+      div.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isSelected) {
+          removeKeyword(item);
+        } else {
+          addKeyword(item);
+        }
+        tagInput.focus();
+      });
+
+      tagDropdownList.appendChild(div);
+    });
+
+    if (queryUpper && !autoSuggestedKeywords.includes(queryUpper)) {
+      const customDiv = document.createElement('div');
+      customDiv.className = 'tag-dropdown-item';
+      customDiv.innerHTML = `
+        <span>➕ Tambah kata kunci custom: "<b>${escapeHtml(queryUpper)}</b>"</span>
+        <span class="item-category">Custom</span>
+      `;
+      customDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addKeyword(queryUpper);
+        tagInput.focus();
+      });
+      tagDropdownList.insertBefore(customDiv, tagDropdownList.firstChild);
+      matchCount++;
+    }
+
+    if (matchCount === 0) {
+      tagDropdownList.innerHTML = `<div class="combobox-no-results">Ketik dan tekan Enter untuk menambah "${escapeHtml(query)}"</div>`;
+    }
+  }
+
+  function processExcel() {
+    // Include typed query if user didn't press enter
+    const remainingInput = tagInput.value.trim().toUpperCase();
+    if (remainingInput && !selectedKeywords.includes(remainingInput)) {
+      selectedKeywords.push(remainingInput);
+      renderTags();
+      tagInput.value = '';
+    }
+
+    const sortOrder = document.getElementById('sort-order').value;
+
+    allFilteredItems = [];
+
+    const binKeys = ['bin code', 'bin', 'bincode', 'bin_code', 'rak', 'location', 'lokasi', 'storage bin', 'bin location', 'slot'];
+    const skuKeys = ['sku code', 'sku', 'skucode', 'sku_code', 'item code', 'kode barang', 'barcode', 'item'];
+    const nameKeys = ['sku name', 'name', 'skuname', 'sku_name', 'nama barang', 'nama', 'description', 'desc', 'product name'];
+    const qtyKeys = ['total qty', 'available qty', 'qty', 'quantity', 'stok', 'stock', 'jumlah', 'tot qty'];
     
     rawData.forEach(row => {
-      const sku = String(row['SKU Code'] || row['SKU'] || '').trim();
-      const name = String(row['SKU Name'] || row['Name'] || '').trim();
-      const bin = String(row['Bin Code'] || row['Bin'] || '-').trim();
+      const sku = getRowValue(row, skuKeys, '');
+      const name = getRowValue(row, nameKeys, 'Tanpa Nama');
+      const bin = getRowValue(row, binKeys, 'NO-BIN');
+      
+      const qtyStr = getRowValue(row, qtyKeys, '0');
+      const qty = Number(qtyStr) || 0;
 
       if (!sku) return;
 
       const rowString = Object.values(row).join(' ').toUpperCase();
 
       let isMatch = true;
-      if (keywords.length > 0) {
-        isMatch = keywords.every(kw => rowString.includes(kw));
+      if (selectedKeywords.length > 0) {
+        // Row must match ALL selected keyword chips
+        isMatch = selectedKeywords.every(kw => rowString.includes(kw));
       }
 
       if (isMatch) {
-        items.push({ sku, name, bin });
+        allFilteredItems.push({ sku, name, bin, qty });
       }
     });
 
-    if (items.length === 0) {
-      alert("Tidak ada data yang cocok dengan filter!");
+    if (allFilteredItems.length === 0) {
+      showNotification("Tidak ada data yang cocok dengan kata kunci!");
       return;
     }
 
-    // LAKUKAN SORTING BERDASARKAN BIN CODE
+    // Sort all items based on Bin Code
     if (sortOrder === 'bin-asc') {
-      items.sort((a, b) => a.bin.localeCompare(b.bin, undefined, { numeric: true, sensitivity: 'base' }));
+      allFilteredItems.sort((a, b) => a.bin.localeCompare(b.bin, undefined, { numeric: true, sensitivity: 'base' }));
     } else if (sortOrder === 'bin-desc') {
-      items.sort((a, b) => b.bin.localeCompare(a.bin, undefined, { numeric: true, sensitivity: 'base' }));
+      allFilteredItems.sort((a, b) => b.bin.localeCompare(a.bin, undefined, { numeric: true, sensitivity: 'base' }));
     }
+
+    buildUniqueBinsList();
 
     document.getElementById('setup-section').style.display = 'none';
     document.getElementById('viewer-section').style.display = 'block';
     
-    currentIndex = 0;
+    setupComboboxEvents();
+
+    if (uniqueBinsList.length > 0) {
+      selectBinGroup(uniqueBinsList[0].binName);
+    } else {
+      selectBinGroup("ALL");
+    }
+
+    showNotification(`Berhasil memuat ${uniqueBinsList.length} Bin Code Unik (${allFilteredItems.length} SKU)!`);
+  }
+
+  function buildUniqueBinsList() {
+    const map = new Map();
+
+    allFilteredItems.forEach(item => {
+      if (!map.has(item.bin)) {
+        map.set(item.bin, { binName: item.bin, itemsCount: 0, totalQty: 0 });
+      }
+      const binObj = map.get(item.bin);
+      binObj.itemsCount += 1;
+      binObj.totalQty += item.qty;
+    });
+
+    uniqueBinsList = Array.from(map.values());
+  }
+
+  function selectBinGroup(binName) {
+    selectedBinCode = binName;
+    
+    if (selectedBinCode === "ALL") {
+      activeBinItems = [...allFilteredItems];
+    } else {
+      activeBinItems = allFilteredItems.filter(item => item.bin === selectedBinCode);
+    }
+
+    currentIndexInBin = 0;
     render();
   }
 
+  const comboboxWrapper = document.getElementById('combobox-wrapper');
+  const searchInput = document.getElementById('bin-search-input');
+  const dropdownList = document.getElementById('combobox-dropdown-list');
+
+  function setupComboboxEvents() {
+    searchInput.addEventListener('focus', () => {
+      comboboxWrapper.classList.add('open');
+      searchInput.select();
+      renderDropdownItems(searchInput.value.trim());
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      comboboxWrapper.classList.add('open');
+      renderDropdownItems(e.target.value.trim());
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!comboboxWrapper.contains(e.target)) {
+        comboboxWrapper.classList.remove('open');
+        updateSearchInputLabel();
+      }
+    });
+  }
+
+  function updateSearchInputLabel() {
+    if (selectedBinCode === "ALL") {
+      searchInput.value = "SEMUA BIN CODE";
+    } else {
+      searchInput.value = selectedBinCode;
+    }
+  }
+
+  function renderDropdownItems(filterQuery = '') {
+    dropdownList.innerHTML = '';
+    const queryUpper = filterQuery.toUpperCase();
+
+    let matchCount = 0;
+
+    if (!queryUpper || "SEMUA BIN CODE ALL".includes(queryUpper)) {
+      matchCount++;
+      const allDiv = document.createElement('div');
+      allDiv.className = `combobox-item ${selectedBinCode === 'ALL' ? 'selected' : ''}`;
+      allDiv.innerHTML = `
+        <span class="item-bin">🌟 SEMUA BIN CODE</span>
+        <span class="item-sub">${allFilteredItems.length} Total SKU</span>
+      `;
+      allDiv.addEventListener('click', () => {
+        selectBinGroup("ALL");
+        comboboxWrapper.classList.remove('open');
+      });
+      dropdownList.appendChild(allDiv);
+    }
+
+    uniqueBinsList.forEach(bObj => {
+      if (!queryUpper || bObj.binName.toUpperCase().includes(queryUpper)) {
+        matchCount++;
+        const div = document.createElement('div');
+        div.className = `combobox-item ${bObj.binName === selectedBinCode ? 'selected' : ''}`;
+        
+        div.innerHTML = `
+          <span class="item-bin">📍 ${escapeHtml(bObj.binName)}</span>
+          <span class="item-sub">${bObj.itemsCount} SKU (${bObj.totalQty} Pcs)</span>
+        `;
+
+        div.addEventListener('click', () => {
+          selectBinGroup(bObj.binName);
+          comboboxWrapper.classList.remove('open');
+        });
+
+        dropdownList.appendChild(div);
+      }
+    });
+
+    if (matchCount === 0) {
+      dropdownList.innerHTML = `<div class="combobox-no-results">Bin Code "${escapeHtml(filterQuery)}" tidak ditemukan</div>`;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   function render() {
-    if (items.length === 0) return;
-    const item = items[currentIndex];
+    if (activeBinItems.length === 0) return;
+    const item = activeBinItems[currentIndexInBin];
 
     document.getElementById('sku-name').innerText = item.name || 'Tanpa Nama';
     document.getElementById('bin-code').innerText = "BIN: " + item.bin;
     document.getElementById('sku-code').innerText = "SKU: " + item.sku;
-    document.getElementById('progress').innerText = `${currentIndex + 1} dari ${items.length} Item`;
+    document.getElementById('qty-val').innerText = item.qty;
 
-    JsBarcode("#barcode", item.sku, {
-      format: "CODE128",
-      lineColor: "#000",
-      width: 2,
-      height: 70,
-      displayValue: true,
-      fontSize: 15
-    });
+    if (selectedBinCode === "ALL") {
+      document.getElementById('badge-index-info').innerText = `Item ${currentIndexInBin + 1} / ${activeBinItems.length}`;
+      document.getElementById('progress').innerText = `SKU ${currentIndexInBin + 1} dari ${activeBinItems.length} (Semua Bin)`;
+    } else {
+      document.getElementById('badge-index-info').innerText = `SKU ${currentIndexInBin + 1} dari ${activeBinItems.length} di Bin ini`;
+      
+      const binIndex = uniqueBinsList.findIndex(b => b.binName === selectedBinCode);
+      document.getElementById('progress').innerText = `Bin Code ${binIndex + 1} dari ${uniqueBinsList.length} (Bin: ${selectedBinCode})`;
+    }
+
+    if (document.activeElement !== searchInput) {
+      updateSearchInputLabel();
+    }
+
+    try {
+      JsBarcode("#barcode", item.sku, {
+        format: "CODE128",
+        lineColor: "#000",
+        width: 2,
+        height: 70,
+        displayValue: true,
+        fontSize: 15
+      });
+    } catch (err) {
+      console.error("Gagal membuat barcode untuk SKU:", item.sku);
+    }
   }
 
   function nextBar() {
-    if (currentIndex < items.length - 1) {
-      currentIndex++;
+    if (currentIndexInBin < activeBinItems.length - 1) {
+      currentIndexInBin++;
       render();
+    } else {
+      if (selectedBinCode !== "ALL" && uniqueBinsList.length > 0) {
+        const currentBinIdx = uniqueBinsList.findIndex(b => b.binName === selectedBinCode);
+        if (currentBinIdx !== -1 && currentBinIdx < uniqueBinsList.length - 1) {
+          const nextBinObj = uniqueBinsList[currentBinIdx + 1];
+          showNotification(`Bin ${selectedBinCode} Selesai! Pindah ke: ${nextBinObj.binName}`);
+          selectBinGroup(nextBinObj.binName);
+        } else {
+          showNotification("Sudah berada di SKU dan Bin Code paling terakhir!");
+        }
+      } else {
+        showNotification("Sudah di SKU terakhir!");
+      }
     }
   }
 
   function prevBar() {
-    if (currentIndex > 0) {
-      currentIndex--;
+    if (currentIndexInBin > 0) {
+      currentIndexInBin--;
       render();
+    } else {
+      if (selectedBinCode !== "ALL" && uniqueBinsList.length > 0) {
+        const currentBinIdx = uniqueBinsList.findIndex(b => b.binName === selectedBinCode);
+        if (currentBinIdx > 0) {
+          const prevBinObj = uniqueBinsList[currentBinIdx - 1];
+          showNotification(`Kembali ke Bin sebelumnya: ${prevBinObj.binName}`);
+          selectedBinCode = prevBinObj.binName;
+          activeBinItems = allFilteredItems.filter(item => item.bin === selectedBinCode);
+          currentIndexInBin = activeBinItems.length - 1;
+          render();
+        } else {
+          showNotification("Sudah di SKU dan Bin Code paling pertama!");
+        }
+      } else {
+        showNotification("Sudah di SKU pertama!");
+      }
     }
   }
 
@@ -189,6 +1017,22 @@
   }
 
   document.addEventListener('keydown', (e) => {
+    if (document.activeElement === searchInput || 
+        document.activeElement === tagInput || 
+        document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'SELECT') {
+      if (e.key === 'Enter') {
+        if (document.activeElement === searchInput) {
+          const firstOption = dropdownList.querySelector('.combobox-item');
+          if (firstOption) {
+            firstOption.click();
+            searchInput.blur();
+          }
+        }
+      }
+      return;
+    }
+
     if (document.getElementById('viewer-section').style.display === 'block') {
       if (e.key === "ArrowRight" || e.key === " ") {
         e.preventDefault();
@@ -203,4 +1047,3 @@
 </script>
 </body>
 </html>
-
